@@ -10,6 +10,7 @@ extern String sc_mqtt_pass;
 extern const long utcOffsetInSeconds;
 extern bool skipPositionAndTimeSetup;
 extern const unsigned long DELAY_MS;
+void setupConfig();
 
 #define RELEASE_URL "https://github.com/zgunz42/servercopilot-iot/releases/latest"
 #define DELAY_MS 1000

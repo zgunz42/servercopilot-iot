@@ -91,6 +91,7 @@ void reconnect() {
 
 void setup()  
  { 
+  setupConfig();
   Serial.begin(115200);
   LittleFS.begin();
   listRoot();
