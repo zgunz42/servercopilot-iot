@@ -48,10 +48,10 @@ void setupConfig()
     }
   #endif
 
-  #ifdef MQTT_PASS
-    if (!String(MQTT_PASS).isEmpty())
+  #ifdef MQTT_PASSWORD
+    if (!String(MQTT_PASSWORD).isEmpty())
     {
-      sc_mqtt_pass = String(MQTT_PASS);
+      sc_mqtt_pass = String(MQTT_PASSWORD);
     }
   #endif
 }

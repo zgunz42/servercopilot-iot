@@ -33,10 +33,9 @@ char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
 
-//GitHubOTA GitHubOTA(VERSION, RELEASE_URL);
-
-GitHubOTA OsOta(RELEASE_VERSION, RELEASE_URL, "firmware.bin", true);
-GitHubFsOTA FsOta(RELEASE_VERSION, RELEASE_URL, "filesystem.bin", true);
+// GitHubOTA OsOta(RELEASE_VERSION, RELEASE_URL);
+GitHubOTA OsOta(RELEASE_VERSION, RELEASE_URL, "firmware.bin", false);
+GitHubFsOTA FsOta(RELEASE_VERSION, RELEASE_URL, "filesystem.bin", false);
 
 void listRoot();
 void printStatus(sensor_t sensor, NTPClient time_client);
