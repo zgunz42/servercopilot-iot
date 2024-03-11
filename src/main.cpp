@@ -6,11 +6,12 @@
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 #include <PubSubClient.h>
+#include <config.h>
+#include <TimeLib.h>
+#include <LittleFS.h>
+#include <GitHubOTA.h>
+#include <GitHubFsOTA.h>
 
-#define MQTT_USER  "1layar"
-#define MQTT_PASS  "Novi421++"
-#define MQTT_HOST  "192.168.1.7"
-#define MQTT_PORT  30000
 #define DHTTYPE    DHT11     // DHT 22 (AM2302)
 
 // #ifdef ARDUINO_ARCH_ESP32
@@ -22,26 +23,6 @@ DHT_Unified dht(D4, DHTTYPE);
 
 uint32_t delayMS;
 
-String ssid;
-String password;
-bool skipPositionAndTimeSetup = false; // fallback
-
-#ifdef WIFI_SSID_NAME
-  if (!String(WIFI_SSID_NAME).isEmpty())
-  {
-    ssid = String(WIFI_SSID_NAME);
-  }
-#endif
-
-#ifdef WIFI_SSID_PASSWORD
-  if (!String(WIFI_SSID_PASSWORD).isEmpty())
-  {
-    password = WIFI_SSID_PASSWORD;
-  }
-#endif
-
-const long utcOffsetInSeconds = 8 * 3600; // UTC+8 offset in seconds
-
 WiFiClient espClient;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
@@ -51,16 +32,25 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
+
+//GitHubOTA GitHubOTA(VERSION, RELEASE_URL);
+
+GitHubOTA OsOta(RELEASE_VERSION, RELEASE_URL, "firmware.bin", true);
+GitHubFsOTA FsOta(RELEASE_VERSION, RELEASE_URL, "filesystem.bin", true);
+
+void listRoot();
+void printStatus(sensor_t sensor, NTPClient time_client);
+
 void setup_wifi() {
 
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
   Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.println(sc_wifi_ssid);
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(sc_wifi_ssid, sc_wifi_password);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -84,7 +74,7 @@ void reconnect() {
     String clientId = "ESP8266Client-";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
-    if (client.connect(clientId.c_str(), MQTT_USER, MQTT_PASS)) {
+    if (client.connect(clientId.c_str(), sc_mqtt_user.c_str(), sc_mqtt_pass.c_str())) {
       Serial.println("connected");
       // Once connected, publish an announcement...
       client.publish("device/ping", "hello world");
@@ -102,21 +92,58 @@ void reconnect() {
 void setup()  
  { 
   Serial.begin(115200);
+  LittleFS.begin();
+  listRoot();
   setup_wifi();
   Serial.println("Connected!");
-  
   // Initialize time client
   timeClient.begin();
-
-  
-  client.setServer(MQTT_HOST, MQTT_PORT);
+  client.setServer(sc_mqtt_host.c_str(), sc_mqtt_port);
   pinMode(D0, OUTPUT);
-    // Initialize device.
   dht.begin();
-  Serial.println(F("DHTxx Unified Sensor Example"));
-  // Print temperature sensor details.
   sensor_t sensor;
   dht.temperature().getSensor(&sensor);
+  dht.humidity().getSensor(&sensor);
+
+  // Set delay between sensor readings based on sensor details.
+  delayMS = sensor.min_delay / 1000;
+  digitalWrite(D0, HIGH);
+
+  // Update time
+  timeClient.update();
+  printStatus(sensor, timeClient);
+  // Chech for updates
+  FsOta.handle();
+  OsOta.handle();
+}  
+
+void listRoot(){
+  Serial.printf("Listing root directory\r\n");
+
+  File root = LittleFS.open("/", "r");
+  File file = root.openNextFile();
+
+  while(file){
+    Serial.printf("  FILE: %s\r\n", file.name());
+    file = root.openNextFile();
+  }
+}
+
+void printStatus(sensor_t sensor, NTPClient time_client) {
+  unsigned long dateEpoc = time_client.getEpochTime();
+
+  // Convert epoch time to a time structure
+  tmElements_t tm;
+  breakTime(dateEpoc, tm);
+
+  // Print formatted time
+  Serial.print("Current time: ");
+  // Format the date and time string
+  char formattedDateTime[25]; // Enough space to hold "YYYY-MM-DD HH:MM:SS" + null terminator
+  sprintf(formattedDateTime, "%04d-%02d-%02d %02d:%02d:%02d", tm.Year + 1970, tm.Month, tm.Day, tm.Hour, tm.Minute, tm.Second);
+
+  Serial.println("Current time: ");
+  Serial.println(formattedDateTime);
   Serial.println(F("------------------------------------"));
   Serial.println(F("Temperature Sensor"));
   Serial.print  (F("Sensor Type: ")); Serial.println(sensor.name);
@@ -127,7 +154,6 @@ void setup()
   Serial.print  (F("Resolution:  ")); Serial.print(sensor.resolution); Serial.println(F("°C"));
   Serial.println(F("------------------------------------"));
   // Print humidity sensor details.
-  dht.humidity().getSensor(&sensor);
   Serial.println(F("Humidity Sensor"));
   Serial.print  (F("Sensor Type: ")); Serial.println(sensor.name);
   Serial.print  (F("Driver Ver:  ")); Serial.println(sensor.version);
@@ -136,17 +162,7 @@ void setup()
   Serial.print  (F("Min Value:   ")); Serial.print(sensor.min_value); Serial.println(F("%"));
   Serial.print  (F("Resolution:  ")); Serial.print(sensor.resolution); Serial.println(F("%"));
   Serial.println(F("------------------------------------"));
-  // Set delay between sensor readings based on sensor details.
-  delayMS = sensor.min_delay / 1000;
-  digitalWrite(D0, HIGH);
-
-  // Update time
-  timeClient.update();
-
-  // Print formatted time
-  Serial.print("Current time: ");
-  Serial.println(timeClient.getFormattedTime());
-}  
+}
 
 void loop() {  
   if (!client.connected()) {
