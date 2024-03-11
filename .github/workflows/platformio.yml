@@ -11,6 +11,16 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v3
 
+    - name: Create environment file
+      run: |
+        echo "VERSION=${GITHUB_REF#$"refs/tags/v"}" > .env
+        echo "MQTT_USER=${{ secrets.MQTT_USER }}" >> .env
+        echo "MQTT_PASSWORD=${{ secrets.MQTT_PASSWORD }}" >> .env
+        echo "MQTT_HOST=${{ secrets.MQTT_HOST }}" >> .env
+        echo "MQTT_PORT=${{ secrets.MQTT_PORT }}" >> .env
+        echo "WIFI_SSID_NAME=${{ secrets.WIFI_SSID_NAME }}" >> .env
+        echo "WIFI_SSID_PASSWORD=${{ secrets.WIFI_SSID_PASSWORD }}" >> .env
+
     - name: Check file existence
       id: check_files
       uses: andstor/file-existence-action@v2

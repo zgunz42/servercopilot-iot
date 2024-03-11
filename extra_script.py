@@ -18,6 +18,7 @@ def getCppDefines():
             print(f'Add env {n} with value "{envValue}"')
             CPPDEFINES.append((n, f'\\\"{envValue}\\\"'))
     CPPDEFINES.append(("CUSTOM_ENV_BUILD_TIME", f'\\\"{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\\\"'))
+    print(f'Add env CUSTOM_ENV_BUILD_TIME with value "{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"')
     return CPPDEFINES
 
 
