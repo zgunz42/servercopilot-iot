@@ -14,5 +14,5 @@ void setupConfig();
 
 #define RELEASE_URL "https://api.github.com/repos/zgunz42/servercopilot-iot/releases/latest"
 #define DELAY_MS 1000
-#define RELEASE_VERSION "v0.0.5"
+#define RELEASE_VERSION "v0.0.7"
 #endif
