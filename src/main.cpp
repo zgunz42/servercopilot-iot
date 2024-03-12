@@ -3,6 +3,7 @@
 #include <DHT.h>
 #include <DHT_U.h>
 #include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 #include <PubSubClient.h>
@@ -13,7 +14,7 @@
 #include <GitHubFsOTA.h>
 
 #define DHTTYPE    DHT11     // DHT 22 (AM2302)
-
+#define TOPIC "server/command"
 // #ifdef ARDUINO_ARCH_ESP32
 //       #include <soc/soc.h>
 //       #include "soc/rtc_cntl_reg.h"
@@ -32,24 +33,54 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
+ESP8266WiFiMulti WiFiMulti;
+
+// A single, global CertStore which can be used by all
+// connections.  Needs to stay live the entire time any of
+// the WiFiClientBearSSLs are present.
+#include <CertStoreBearSSL.h>
+BearSSL::CertStore certStore;
 
 // GitHubOTA OsOta(RELEASE_VERSION, RELEASE_URL);
-GitHubOTA OsOta(RELEASE_VERSION, RELEASE_URL, "firmware.bin", false);
-GitHubFsOTA FsOta(RELEASE_VERSION, RELEASE_URL, "filesystem.bin", false);
+GitHubOTA OsOta(RELEASE_VERSION, RELEASE_URL, "firmware.bin", true);
+GitHubFsOTA FsOta(RELEASE_VERSION, RELEASE_URL, "filesystem.bin", true);
 
 void listRoot();
 void printStatus(sensor_t sensor, NTPClient time_client);
+void fetchURL(BearSSL::WiFiClientSecure *client, const char *host, const uint16_t port, const char *path);
+
+// Set time via NTP, as required for x.509 validation
+void setClock() {
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");  // UTC
+
+  Serial.print(F("Waiting for NTP time sync: "));
+  time_t now = time(nullptr);
+  while (now < 8 * 3600 * 2) {
+    yield();
+    delay(500);
+    Serial.print(F("."));
+    now = time(nullptr);
+  }
+
+  Serial.println(F(""));
+  struct tm timeinfo;
+  gmtime_r(&now, &timeinfo);
+  Serial.print(F("Current time: "));
+  Serial.print(asctime(&timeinfo));
+}
+
 
 void setup_wifi() {
 
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
-  Serial.print("Connecting to wifi");
+  Serial.println("Connecting to wifi");
   Serial.println(sc_wifi_ssid);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(sc_wifi_ssid, sc_wifi_password);
+  WiFiMulti.addAP(sc_wifi_ssid.c_str(), sc_wifi_password.c_str());
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -88,14 +119,53 @@ void reconnect() {
   }
 }
 
+void callback(char* topic, byte* payload, unsigned int length)
+{
+    payload[length] = '\0';
+    int value = String((char*) payload).toInt();
+
+
+    if (topic == TOPIC && value == 1) {
+        BearSSL::WiFiClientSecure net_client;
+        bool mfln = net_client.probeMaxFragmentLength("github.com", 443, 1024);  // server must be the same as in ESPhttpUpdate.update()
+        Serial.printf("MFLN supported: %s\n", mfln ? "yes" : "no");
+        if (mfln) { net_client.setBufferSizes(1024, 1024); }
+        net_client.setCertStore(&certStore);
+        // Chech for updates
+        Serial.printf("Attempting to fetch https://www.github.com/...\n");
+        fetchURL(&net_client, "www.github.com", 443, "/");
+        Serial.printf("Fetched https://api.1layar.com...\n");
+        fetchURL(&net_client, "api.1layar.com", 443, "/");
+
+        String firmwareUrl = "https://api.1layar.com/api/v1/device/firmware";
+        String filesystemUrl = "https://api.1layar.com/api/v1/device/filesystem";
+
+        FsOta.handle(&net_client, filesystemUrl);
+        OsOta.handle(&net_client, firmwareUrl);
+    }
+
+    Serial.println(topic);
+    Serial.println(value);
+}
+
 void setup()  
  { 
   setupConfig();
   Serial.begin(115200);
-  LittleFS.begin();
-  listRoot();
   setup_wifi();
+  if (!LittleFS.begin()) {
+    Serial.println("Failed to mount LittleFS");
+  }
+
+  listRoot();
+
+  int numCerts = certStore.initCertStore(LittleFS, PSTR("/certs.idx"), PSTR("/certs.ar"));
+  Serial.print(F("Number of CA certs read: "));
+  Serial.println(numCerts);  
   Serial.println("Connected!");
+  
+  setClock();
+
   // Initialize time client
   timeClient.begin();
   client.setServer(sc_mqtt_host.c_str(), sc_mqtt_port);
@@ -111,10 +181,9 @@ void setup()
 
   // Update time
   timeClient.update();
-  printStatus(sensor, timeClient);
-  // Chech for updates
-  FsOta.handle();
-  OsOta.handle();
+  // printStatus(sensor, timeClient);
+  client.setCallback(callback);
+  client.subscribe(TOPIC);
 }  
 
 void listRoot(){
@@ -206,4 +275,46 @@ void loop() {
 
     client.publish("device/humidity", humidity);
   }
+}
+
+void fetchURL(BearSSL::WiFiClientSecure *client, const char *host, const uint16_t port, const char *path) {
+  if (!path) {
+    path = "/";
+  }
+
+  Serial.printf("Trying: %s:443...", host);
+  client->connect(host, port);
+  if (!client->connected()) {
+    Serial.printf("*** Can't connect. ***\n-------\n");
+    return;
+  }
+  Serial.printf("Connected!\n-------\n");
+  client->write("GET ");
+  client->write(path);
+  client->write(" HTTP/1.0\r\nHost: ");
+  client->write(host);
+  client->write("\r\nUser-Agent: ESP8266\r\n");
+  client->write("\r\n");
+  uint32_t to = millis() + 5000;
+  if (client->connected()) {
+    do {
+      char tmp[32];
+      memset(tmp, 0, 32);
+      int rlen = client->read((uint8_t*)tmp, sizeof(tmp) - 1);
+      yield();
+      if (rlen < 0) {
+        break;
+      }
+      // Only print out first line up to \r, then abort connection
+      char *nl = strchr(tmp, '\r');
+      if (nl) {
+        *nl = 0;
+        Serial.print(tmp);
+        break;
+      }
+      Serial.print(tmp);
+    } while (millis() < to);
+  }
+  client->stop();
+  Serial.printf("\n-------\n");
 }

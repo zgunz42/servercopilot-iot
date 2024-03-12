@@ -131,7 +131,7 @@
                 "MQTT_PORT=\"30000\"",
                 "MQTT_USER=\"1layar\"",
                 "MQTT_PASSWORD=\"Novi421++\"",
-                "CUSTOM_ENV_BUILD_TIME=\"2024-03-11 12:34:59\"",
+                "CUSTOM_ENV_BUILD_TIME=\"2024-03-11 16:04:16\"",
                 "PLATFORMIO=60113",
                 "ESP8266",
                 "ARDUINO_ARCH_ESP8266",

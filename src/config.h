@@ -12,7 +12,7 @@ extern bool skipPositionAndTimeSetup;
 extern const unsigned long DELAY_MS;
 void setupConfig();
 
-#define RELEASE_URL "https://api.github.com/repos/zgunz42/servercopilot-iot/releases/latest"
+#define RELEASE_URL "https://github.com/zgunz42/servercopilot-iot/releases/latest"
 #define DELAY_MS 1000
-#define RELEASE_VERSION "0.0.9"
+#define RELEASE_VERSION "0.0.8"
 #endif
