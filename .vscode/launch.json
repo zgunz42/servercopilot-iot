@@ -12,9 +12,9 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug",
-            "executable": "c:/Users/USER/Project/ServerCopilot/.pio/build/nodemcuv2/firmware.elf",
+            "executable": "/Users/mac/StartUp/servercopilot-iot/.pio/build/nodemcuv2/firmware.elf",
             "projectEnvName": "nodemcuv2",
-            "toolchainBinDir": "C:/Users/USER/.platformio/packages/toolchain-xtensa/bin",
+            "toolchainBinDir": "/Users/mac/.platformio/packages/toolchain-xtensa/bin",
             "internalConsoleOptions": "openOnSessionStart",
             "preLaunchTask": {
                 "type": "PlatformIO",
@@ -25,18 +25,18 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug (skip Pre-Debug)",
-            "executable": "c:/Users/USER/Project/ServerCopilot/.pio/build/nodemcuv2/firmware.elf",
+            "executable": "/Users/mac/StartUp/servercopilot-iot/.pio/build/nodemcuv2/firmware.elf",
             "projectEnvName": "nodemcuv2",
-            "toolchainBinDir": "C:/Users/USER/.platformio/packages/toolchain-xtensa/bin",
+            "toolchainBinDir": "/Users/mac/.platformio/packages/toolchain-xtensa/bin",
             "internalConsoleOptions": "openOnSessionStart"
         },
         {
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug (without uploading)",
-            "executable": "c:/Users/USER/Project/ServerCopilot/.pio/build/nodemcuv2/firmware.elf",
+            "executable": "/Users/mac/StartUp/servercopilot-iot/.pio/build/nodemcuv2/firmware.elf",
             "projectEnvName": "nodemcuv2",
-            "toolchainBinDir": "C:/Users/USER/.platformio/packages/toolchain-xtensa/bin",
+            "toolchainBinDir": "/Users/mac/.platformio/packages/toolchain-xtensa/bin",
             "internalConsoleOptions": "openOnSessionStart",
             "loadMode": "manual"
         }
